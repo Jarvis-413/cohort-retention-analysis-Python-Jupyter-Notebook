@@ -142,16 +142,7 @@ olist-cohort-retention-analysis/
 └── .gitignore
 ```
 
-## How to Run
-
-```bash
-git clone <repository-url>
-cd olist-cohort-retention-analysis
-pip install -r requirements.txt
-jupyter notebook
-```
-
-Place the Olist CSV files inside the `data/` directory and run:
+Run the Olist ipynb:
 
 `olist_cohort_retention_analysis.ipynb`
 
