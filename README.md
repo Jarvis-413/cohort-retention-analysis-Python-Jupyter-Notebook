@@ -157,3 +157,147 @@ Run the Olist ipynb:
 ## Analytical Note
 
 The core cohort analysis intentionally uses delivered orders as completed purchases. If the business defines a completed purchase differently, update the order-status filter and rerun the analysis.
+
+
+## Complete compact version
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+# -----------------------------
+# 1. Load data
+# -----------------------------
+
+customers = pd.read_csv("customers_dataset.csv")
+orders = pd.read_csv("orders_dataset.csv")
+
+# -----------------------------
+# 2. Convert date
+# -----------------------------
+
+orders["order_purchase_timestamp"] = pd.to_datetime(
+    orders["order_purchase_timestamp"]
+)
+
+# -----------------------------
+# 3. Keep delivered orders
+# -----------------------------
+
+orders = orders[
+    orders["order_status"] == "delivered"
+].copy()
+
+# -----------------------------
+# 4. Join customer information
+# -----------------------------
+
+df = orders.merge(
+    customers[
+        [
+            "customer_id",
+            "customer_unique_id",
+            "customer_city",
+            "customer_state"
+        ]
+    ],
+    on="customer_id",
+    how="left"
+)
+
+# -----------------------------
+# 5. Create order month
+# -----------------------------
+
+df["order_month"] = (
+    df["order_purchase_timestamp"]
+    .dt.to_period("M")
+)
+
+# -----------------------------
+# 6. Find first purchase month
+# -----------------------------
+
+df["cohort_month"] = (
+    df.groupby("customer_unique_id")["order_month"]
+    .transform("min")
+)
+
+# -----------------------------
+# 7. Calculate cohort index
+# -----------------------------
+
+df["cohort_index"] = (
+    (df["order_month"].dt.year -
+     df["cohort_month"].dt.year) * 12
+    +
+    (df["order_month"].dt.month -
+     df["cohort_month"].dt.month)
+)
+
+# -----------------------------
+# 8. Count unique customers
+# -----------------------------
+
+cohort_data = (
+    df.groupby(
+        ["cohort_month", "cohort_index"]
+    )["customer_unique_id"]
+    .nunique()
+    .reset_index()
+)
+
+# -----------------------------
+# 9. Create cohort table
+# -----------------------------
+
+cohort_table = cohort_data.pivot(
+    index="cohort_month",
+    columns="cohort_index",
+    values="customer_unique_id"
+)
+
+# -----------------------------
+# 10. Calculate retention
+# -----------------------------
+
+retention_table = (
+    cohort_table
+    .divide(cohort_table.iloc[:, 0], axis=0)
+    * 100
+)
+
+retention_table = retention_table.round(2)
+
+# -----------------------------
+# 11. Rename columns
+# -----------------------------
+
+retention_table.columns = [
+    f"Month {int(x)}"
+    for x in retention_table.columns
+]
+
+# -----------------------------
+# 12. Display result
+# -----------------------------
+
+display(retention_table)
+
+
+## The core relationship in data is:
+customers_dataset
+       |
+       | customer_id
+       ↓
+orders_dataset
+       |
+       | order_id
+       ↓
+order_items_dataset
+       |
+       | product_id
+       ↓
+products_dataset
+       |
+       ↓
+product_category_name_translation
